@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nube Musical con Controles</title>
+<style>
+    :root { --glow-color: #08f7fe; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+    body { display: flex; justify-content: center; align-items: center; }
+    @keyframes levitate { 0% { transform: translateY(-10px); } 50% { transform: translateY(10px); } 100% { transform: translateY(-10px); } }
+    .cloud-container { filter: drop-shadow(0 0 7px var(--glow-color)) drop-shadow(0 0 15px var(--glow-color)) drop-shadow(0 0 30px var(--glow-color)); transition: filter 0.5s ease; position: relative; z-index: 2; will-change: filter, transform; animation: levitate 6s ease-in-out infinite; cursor: pointer; }
+    .cloud { position: relative; width: 250px; height: 75px; background: var(--glow-color); border-radius: 40px; transition: background 0.5s ease; }
+    .cloud::before, .cloud::after { content: ''; position: absolute; background: inherit; border-radius: 50%; transition: background 0.5s ease; }
+    .cloud::before { width: 120px; height: 120px; top: -60px; left: 40px; }
+    .cloud::after { width: 90px; height: 90px; top: -45px; right: 35px; }
+    #particle-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+    
+    .falling-particle { position: absolute; user-select: none; will-change: transform, opacity; }
+    
+    .letter { color: var(--glow-color); text-shadow: 0 0 5px #fff, 0 0 12px var(--glow-color), 0 0 20px var(--glow-color); }
+    
+    .effect-container { position: absolute; z-index: 3; }
+    .splash-particle { position: absolute; border-radius: 50%; background: var(--glow-color); box-shadow: 0 0 5px #fff, 0 0 10px var(--glow-color); }
+    .impact-line { position: absolute; height: 2px; background: var(--glow-color); box-shadow: 0 0 8px var(--glow-color); border-radius: 1px; transform-origin: center; }
+</style>
+</head>
+<body>
+    <!-- ======================================================= -->
+    <!-- PASO 1: AGREGA TUS CANCIONES AQUÍ                     -->
+    <!-- BUG CORREGIDO: Antes había dos id="cancion1", la segunda canción nunca se reproducía -->
+    <audio id="cancion1"><source src="Ева - винтаж - Eva - Vintage (lonely, lonely, I guess I'm lonely tiktok version) (Lyrics).mp3" type="audio/mpeg"></audio>
+    <audio id="cancion2"><source src="TheFatRat & Anjulie - Close To The Sun.mp3" type="audio/mpeg"></audio>
+    <audio id="cancion3"><source src="Marin Hoxha & Caravn - Eternal (Lyrics).mp3" type="audio/mpeg"></audio>
+    <audio id="cancion4"><source src="Switch Disco - REACT (Lyrics) ft. Ella Henderson, Robert Miles.mp3" type="audio/mpeg"></audio>
+    
+    <!-- Para agregar otra canción, solo copia y pega una línea, cambiando el id y el archivo de la canción: -->
+    <!-- <audio id="cancion5"><source src="nombre-de-tu-otra-cancion.mp3" type="audio/mpeg"></audio> -->
+    
+    <div id="particle-container"></div>
+    <div class="cloud-container"><div class="cloud"></div></div>
+
+    <script>
+        const cloudContainer = document.querySelector('.cloud-container');
+        const particleContainer = document.getElementById('particle-container');
+
+        // =======================================================
+        // PASO 2: AÑADE EL ID DE TUS CANCIONES A ESTA LISTA     -->
+        // BUG CORREGIDO: Ahora incluye las 4 canciones (antes faltaba cancion2 = TheFatRat)
+        // =======================================================
+        const playlistIds = ['cancion1', 'cancion2', 'cancion3', 'cancion4'];
+        // Si agregaste la "cancion5" arriba, añádela aquí también:
+        // const playlistIds = ['cancion1', 'cancion2', 'cancion3', 'cancion4', 'cancion5'];
+        
+        const playlist = playlistIds.map(id => document.getElementById(id));
+        let currentSongIndex = 0;
+
+        // --- CONSTANTES DEL EFECTO DE LLUVIA ---
+        const rainCharacters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        const rainColors = ['#39ff14', '#00ffff', '#ff00ff', '#f721ff', '#ffff00', '#ff9900', '#0ff0fc', '#ff3131', '#6e0dd0', '#7fff00', '#ff073a', '#08f7fe'];
+        
+        let colorIndex = 0, cloudRect, floorY;
+        let particleIntervalId;
+        let colorIntervalId;
+
+        function changeGlowColor(palette) { colorIndex = (colorIndex + 1) % palette.length; document.documentElement.style.setProperty('--glow-color', palette[colorIndex]); }
+        function updatePositions() { cloudRect = cloudContainer.getBoundingClientRect(); floorY = window.innerHeight * 0.90; }
+        
+        function createSplashEffect(x, y) { const c = document.createElement('div'); c.classList.add('effect-container'); c.style.left = x + 'px'; c.style.top = y + 'px'; particleContainer.appendChild(c); const pC = Math.floor(Math.random() * 5) + 4; for (let i = 0; i < pC; i++) { const p = document.createElement('div'); p.classList.add('splash-particle'); const s = Math.random() * 3 + 1; p.style.width = s + 'px'; p.style.height = s + 'px'; c.appendChild(p); const a = Math.random() * Math.PI, f = Math.random() * 40 + 20, eX = Math.cos(a) * f, eY = -Math.sin(a) * f; p.animate([{ transform: `translate(0, 0) scale(1)`, opacity: 1 }, { transform: `translate(${eX}px, ${eY}px) scale(0)`, opacity: 0 }], { duration: Math.random() * 600 + 400, easing: 'cubic-bezier(0.1, 0.7, 1.0, 0.1)' }).onfinish = () => p.remove(); } const l = document.createElement('div'); l.classList.add('impact-line'); const fW = Math.random() * 40 + 30; l.style.width = fW + 'px'; l.style.transform = `translateX(-${fW / 2}px) scaleX(0)`; c.appendChild(l); l.animate([{ transform: `translateX(-${fW / 2}px) scaleX(0)`, opacity: 1 }, { transform: `translateX(-${fW / 2}px) scaleX(1)`, opacity: 0 }], { duration: 400, easing: 'ease-out' }).onfinish = () => l.remove(); setTimeout(() => c.remove(), 1000); }
+        
+        const createRainParticle = () => {
+            const p = document.createElement('span');
+            p.classList.add('falling-particle', 'letter');
+            p.innerHTML = rainCharacters[Math.floor(Math.random() * rainCharacters.length)];
+            const rF = 0.90, rW = cloudRect.width * rF, oX = cloudRect.left + (cloudRect.width - rW) / 2;
+            const sX = Math.random() * rW + oX, sY = cloudRect.bottom - cloudRect.height * 0.25;
+            p.style.left = sX + 'px'; p.style.top = sY + 'px';
+            p.style.fontSize = (Math.random() * 10 + 15) + 'px';
+            particleContainer.appendChild(p);
+            const dY = floorY - sY, dX = (Math.random() - 0.5) * 4;
+            const anim = p.animate([{ transform: `translate(0, 0)`, opacity: 1 }, { transform: `translate(${dX}px, ${dY}px)`, opacity: 1 }], { duration: Math.random() * 1500 + 2500, easing: 'ease-in' });
+            anim.onfinish = () => { createSplashEffect(sX + dX, floorY); p.remove(); };
+        };
+
+        const playSongAndStartEffect = () => {
+            clearInterval(particleIntervalId);
+            clearInterval(colorIntervalId);
+            particleContainer.innerHTML = '';
+            playlist.forEach(audio => { audio.pause(); audio.currentTime = 0; });
+            playlist[currentSongIndex].play().catch(error => { console.log("Haz clic o presiona una tecla para iniciar."); });
+            changeGlowColor(rainColors);
+            colorIntervalId = setInterval(() => changeGlowColor(rainColors), 3000);
+            particleIntervalId = setInterval(createRainParticle, 30);
+        };
+        
+        // --- FUNCIÓN PARA CAMBIAR A LA SIGUIENTE CANCIÓN ---
+        function playNextSong() {
+            currentSongIndex = (currentSongIndex + 1) % playlist.length;
+            playSongAndStartEffect();
+        }
+        
+        // --- FUNCIÓN PARA CAMBIAR A LA CANCIÓN ANTERIOR ---
+        function playPreviousSong() {
+            // Esta fórmula matemática asegura que si estás en la primera canción (índice 0)
+            // y retrocedes, vayas a la última canción de la lista.
+            currentSongIndex = (currentSongIndex - 1 + playlist.length) % playlist.length;
+            playSongAndStartEffect();
+        }
+
+        window.onload = () => {
+            updatePositions(); 
+            window.addEventListener('resize', updatePositions); 
+            
+            cloudContainer.addEventListener('click', playNextSong);
+
+            playlist.forEach(audio => {
+                audio.addEventListener('ended', playNextSong);
+            });
+            
+            // =======================================================
+            // CONTROLES DEL TECLADO
+            // =======================================================
+            window.addEventListener('keydown', (event) => {
+                // Si se presiona la flecha derecha, avanza la canción
+                if (event.key === 'ArrowRight') {
+                    playNextSong();
+                } 
+                // Si se presiona la flecha izquierda, retrocede la canción
+                else if (event.key === 'ArrowLeft') {
+                    playPreviousSong();
+                }
+            });
+
+            playSongAndStartEffect();
+        };
+    </script>
+</body>
+</html>
